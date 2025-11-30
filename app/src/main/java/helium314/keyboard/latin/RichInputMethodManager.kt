@@ -125,8 +125,18 @@ class RichInputMethodManager private constructor() {
     }
 
     fun switchToShortcutIme(inputMethodService: InputMethodService) {
-        val imiId = shortcutInputMethodInfo?.id ?: return
-        val token = inputMethodService.window.window?.attributes?.token ?: return
+        Log.i(TAG, "switchToShortcutIme called, shortcutIME=${shortcutInputMethodInfo?.id}")
+        val imiId = shortcutInputMethodInfo?.id
+        if (imiId == null) {
+            Log.w(TAG, "No shortcut IME available, cannot switch to voice input")
+            return
+        }
+        val token = inputMethodService.window.window?.attributes?.token
+        if (token == null) {
+            Log.w(TAG, "No window token available, cannot switch IME")
+            return
+        }
+        Log.i(TAG, "Switching to IME: $imiId")
         GlobalScope.launch {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
                 inputMethodService.switchInputMethod(imiId, shortcutSubtype)
@@ -138,10 +148,8 @@ class RichInputMethodManager private constructor() {
     // todo: is shortcutIme only voice input, or can it be something else?
     //  if always voice input, rename it and other things like mHasShortcutKey
     private fun updateShortcutIme() {
-        if (DEBUG) {
-            val subtype = shortcutSubtype?.let { "${it.locale()}, ${it.mode}" } ?: "<null>"
-            Log.d(TAG, ("Update shortcut IME from: ${shortcutInputMethodInfo?.id ?: "<null>"}, $subtype"))
-        }
+        val subtype = shortcutSubtype?.let { "${it.locale()}, ${it.mode}" } ?: "<null>"
+        Log.i(TAG, ("Update shortcut IME from: ${shortcutInputMethodInfo?.id ?: "<null>"}, $subtype"))
         val richSubtype = currentRichInputMethodSubtype
         val implicitlyEnabledSubtype = SubtypeSettings.isEnabled(richSubtype.rawSubtype)
                 && !SubtypeSettings.getEnabledSubtypes(false).contains(richSubtype.rawSubtype)
@@ -151,6 +159,7 @@ class RichInputMethodManager private constructor() {
 
         // TODO: Update an icon for shortcut IME
         val shortcuts = inputMethodManager.shortcutInputMethodsAndSubtypes
+        Log.i(TAG, "Available shortcut IMEs: ${shortcuts.keys.map { it.id }}")
         shortcutInputMethodInfo = null
         shortcutSubtype = null
         for (imi in shortcuts.keys) {
@@ -161,10 +170,8 @@ class RichInputMethodManager private constructor() {
             shortcutSubtype = subtypes.getOrNull(0)
             break
         }
-        if (DEBUG) {
-            val subtype = shortcutSubtype?.let { "${it.locale()}, ${it.mode}" } ?: "<null>"
-            Log.d(TAG, ("Update shortcut IME to: ${shortcutInputMethodInfo?.id ?: "<null>"}, $subtype"))
-        }
+        val updatedSubtype = shortcutSubtype?.let { "${it.locale()}, ${it.mode}" } ?: "<null>"
+        Log.i(TAG, ("Update shortcut IME to: ${shortcutInputMethodInfo?.id ?: "<null>"}, $updatedSubtype"))
     }
 
     private fun hasMultipleEnabledSubtypes(shouldIncludeAuxiliarySubtypes: Boolean, imiList: List<InputMethodInfo>): Boolean {

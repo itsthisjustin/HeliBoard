@@ -177,6 +177,7 @@ public class LatinIME extends InputMethodService implements
     private GestureConsumer mGestureConsumer = GestureConsumer.NULL_GESTURE_CONSUMER;
 
     private final ClipboardHistoryManager mClipboardHistoryManager = new ClipboardHistoryManager(this);
+    private VoiceInputHelper mVoiceInputHelper;
 
     public static final class UIHandler extends LeakGuardHandlerWrapper<LatinIME> {
         private static final int MSG_UPDATE_SHIFT_STATE = 0;
@@ -540,6 +541,7 @@ public class LatinIME extends InputMethodService implements
 
         loadSettings();
         mClipboardHistoryManager.onCreate();
+        mVoiceInputHelper = new VoiceInputHelper(this);
         mHandler.onCreate();
 
         // Register to receive ringer mode change.
@@ -679,6 +681,9 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void onDestroy() {
         mClipboardHistoryManager.onDestroy();
+        if (mVoiceInputHelper != null) {
+            mVoiceInputHelper.destroy();
+        }
         mDictionaryFacilitator.closeDictionaries();
         mSettings.onDestroy();
         unregisterReceiver(mRingerModeChangeReceiver);
@@ -750,6 +755,11 @@ public class LatinIME extends InputMethodService implements
         if (hasSuggestionStripView()) {
             mSuggestionStripView.setRtl(mRichImm.getCurrentSubtype().isRtlSubtype());
             mSuggestionStripView.setListener(this, view);
+        }
+        // Set up voice input view
+        if (mVoiceInputHelper != null) {
+            View voiceInputView = mKeyboardSwitcher.getVoiceInputView();
+            mVoiceInputHelper.setVoiceInputView(voiceInputView);
         }
     }
 
@@ -1402,7 +1412,15 @@ public class LatinIME extends InputMethodService implements
     // completely replace #onCodeInput.
     public void onEvent(@NonNull final Event event) {
         if (KeyCode.VOICE_INPUT == event.getKeyCode()) {
-            mRichImm.switchToShortcutIme(this);
+            Log.i(TAG, "Voice input button pressed");
+            // Use SpeechRecognizer API directly instead of switching IMEs
+            // This works with or without hardware keyboard attached
+            if (mVoiceInputHelper != null) {
+                mVoiceInputHelper.startVoiceRecognition();
+            } else {
+                Log.w(TAG, "VoiceInputHelper not initialized");
+            }
+            return;
         }
         final InputTransaction completeInputTransaction =
                 mInputLogic.onCodeInput(mSettings.getCurrent(), event,
