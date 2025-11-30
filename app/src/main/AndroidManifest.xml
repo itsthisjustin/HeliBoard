@@ -85,6 +85,10 @@ SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
             </intent-filter>
         </activity>
 
+        <activity android:name=".permissions.PermissionsActivity"
+                android:theme="@android:style/Theme.Translucent.NoTitleBar"
+                android:exported="false" />
+
         <!-- Broadcast receivers -->
         <receiver android:name="SystemBroadcastReceiver"
                 android:exported="true">

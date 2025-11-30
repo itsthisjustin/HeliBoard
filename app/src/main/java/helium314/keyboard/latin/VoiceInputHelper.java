@@ -1,9 +1,12 @@
 package helium314.keyboard.latin;
 
+import android.Manifest;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -15,6 +18,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 
 import helium314.keyboard.keyboard.KeyboardSwitcher;
+import helium314.keyboard.latin.permissions.PermissionsUtil;
 
 import java.util.ArrayList;
 
@@ -53,6 +57,13 @@ public class VoiceInputHelper {
     public void startVoiceRecognition() {
         if (mIsListening) {
             Log.w(TAG, "Already listening, ignoring request");
+            return;
+        }
+
+        // Check for microphone permission
+        if (!checkMicrophonePermission()) {
+            Log.w(TAG, "Microphone permission not granted, requesting permission");
+            requestMicrophonePermission();
             return;
         }
 
@@ -229,6 +240,35 @@ public class VoiceInputHelper {
             Log.i(TAG, "Inserted text: " + text);
         } else {
             Log.w(TAG, "No input connection available");
+        }
+    }
+
+    /**
+     * Checks if microphone permission is granted.
+     */
+    private boolean checkMicrophonePermission() {
+        return PermissionsUtil.checkAllPermissionsGranted(mLatinIME, Manifest.permission.RECORD_AUDIO);
+    }
+
+    /**
+     * Requests microphone permission from the user.
+     * Opens a transparent activity that can show the permission dialog.
+     */
+    private void requestMicrophonePermission() {
+        try {
+            Intent intent = new Intent(mLatinIME, helium314.keyboard.latin.permissions.PermissionsActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            mLatinIME.startActivity(intent);
+            Log.i(TAG, "Launched permission request activity");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to launch permission activity", e);
+            // Fallback to showing message
+            KeyboardSwitcher.getInstance().setVoiceInputKeyboard();
+            updateStatus("Permission needed");
+            updateResult("Please enable Microphone permission in Settings");
+            mHandler.postDelayed(() -> {
+                KeyboardSwitcher.getInstance().setAlphabetKeyboard();
+            }, 3000);
         }
     }
 }
