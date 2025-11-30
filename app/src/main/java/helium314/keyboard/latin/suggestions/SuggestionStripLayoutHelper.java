@@ -491,7 +491,9 @@ final class SuggestionStripLayoutHelper {
 
     private int layoutPunctuationsAndReturnStartIndexOfMoreSuggestions(
             final PunctuationSuggestions punctuationSuggestions, final ViewGroup stripView) {
-        final int countInStrip = Math.min(punctuationSuggestions.size(), PUNCTUATIONS_IN_STRIP);
+        // Show all punctuation suggestions with horizontal scrolling
+        // Limit to available views (MAX_SUGGESTIONS = 18)
+        final int countInStrip = Math.min(punctuationSuggestions.size(), mWordViews.size());
         for (int positionInStrip = 0; positionInStrip < countInStrip; positionInStrip++) {
             if (positionInStrip != 0) {
                 // Add divider if this isn't the left most suggestion in suggestions strip.
@@ -509,7 +511,13 @@ final class SuggestionStripLayoutHelper {
             wordView.setCompoundDrawables(null, null, null, null);
             wordView.setTextColor(mColorAutoCorrect);
             stripView.addView(wordView);
-            setLayoutWeight(wordView, 1.0f, mSuggestionsStripHeight);
+            // Use WRAP_CONTENT instead of layout weight to allow horizontal scrolling
+            final ViewGroup.LayoutParams lp = wordView.getLayoutParams();
+            if (lp instanceof final LinearLayout.LayoutParams llp) {
+                llp.width = LinearLayout.LayoutParams.WRAP_CONTENT;
+                llp.height = mSuggestionsStripHeight;
+                llp.weight = 0;
+            }
         }
         mMoreSuggestionsAvailable = (punctuationSuggestions.size() > countInStrip);
         return countInStrip;

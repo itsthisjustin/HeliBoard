@@ -37,7 +37,8 @@ public class SuggestedWords {
     public static final int INPUT_STYLE_BEGINNING_OF_SENTENCE_PREDICTION = 7;
 
     // The maximum number of suggestions available.
-    public static final int MAX_SUGGESTIONS = 18;
+    // Increased from 18 to 50 to support more symbols in the scrollable symbols strip
+    public static final int MAX_SUGGESTIONS = 50;
 
     private static final ArrayList<SuggestedWordInfo> EMPTY_WORD_INFO_LIST = new ArrayList<>(0);
     @NonNull

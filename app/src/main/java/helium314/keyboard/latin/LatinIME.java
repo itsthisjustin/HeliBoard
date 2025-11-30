@@ -1736,35 +1736,11 @@ public class LatinIME extends InputMethodService implements
             mHandler.postUpdateSuggestionStrip(SuggestedWords.INPUT_STYLE_TYPING);
         } else {
             // Show symbols in the suggestion strip
+            // Use the same punctuation suggestions list from the configuration
             mSymbolsShowing = true;
-            final ArrayList<String> symbolsList = new ArrayList<>();
-            final ArrayList<String> numbersList = new ArrayList<>();
-
-            // Get symbols from the actual symbols keyboard
-            final Keyboard symbolsKeyboard = mKeyboardSwitcher.mKeyboardLayoutSet.getKeyboard(KeyboardId.ELEMENT_SYMBOLS);
-            if (symbolsKeyboard != null) {
-                for (Key key : symbolsKeyboard.getSortedKeys()) {
-                    final String label = key.getLabel();
-                    final int code = key.getCode();
-
-                    // Only add keys that have visible labels and represent printable characters
-                    if (label != null && !label.isEmpty() && code > 0 && code < 0x10000) {
-                        // Separate numbers from other symbols - put numbers at the end
-                        if (code >= '0' && code <= '9') {
-                            numbersList.add(label);
-                        } else {
-                            symbolsList.add(label);
-                        }
-                    }
-                }
-                // Add numbers at the end
-                symbolsList.addAll(numbersList);
-            }
-
-            // Create PunctuationSuggestions instead of SuggestedWords so symbols insert instead of replace
-            final PunctuationSuggestions suggestedWords = PunctuationSuggestions.newPunctuationSuggestions(
-                symbolsList.toArray(new String[0]));
-
+            final SettingsValues settingsValues = mSettings.getCurrent();
+            final PunctuationSuggestions suggestedWords =
+                settingsValues.mSpacingAndPunctuations.mSuggestPuncList;
             mHandler.setSuggestions(suggestedWords);
         }
     }

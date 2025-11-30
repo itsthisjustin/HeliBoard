@@ -8,7 +8,8 @@
     <!-- TODO: these settings depend on the language. They should be put either in the dictionary
          header, or in the subtype maybe? -->
     <!-- Symbols that are suggested between words -->
-    <string name="suggested_punctuations">!,?,\\,,:,;,\",(,),\',-,/,@,_</string>
+    <!-- Extended set including brackets, mathematical symbols, currency, and more -->
+    <string name="suggested_punctuations">!,?,\\,,:,;,\",(,),\',-,/,@,_,[,],{,},&lt;,&gt;,*,+,=,|,&amp;,%,#,$,€,£,¥,~,`,^,•,·,…,©,®,™,°,±,×,÷,≈,≠,≤,≥</string>
     <!-- Symbols that are normally preceded by a space (used to add an auto-space before these) -->
     <string name="symbols_preceded_by_space">([{&amp;</string>
     <!-- Symbols that are normally followed by a space (used to add an auto-space after these) -->
