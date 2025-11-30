@@ -322,12 +322,13 @@ public final class InputLogic {
         }
 
         commitChosenWord(settingsValues, suggestion, LastComposedWord.COMMIT_TYPE_MANUAL_PICK, LastComposedWord.NOT_A_SEPARATOR);
+        // Insert space immediately after suggestion if autospace is enabled
+        if (settingsValues.mAutospaceAfterSuggestion) {
+            mConnection.commitText(" ", 1);
+        }
         mConnection.endBatchEdit();
         // Don't allow cancellation of manual pick
         mLastComposedWord.deactivate();
-        // Space state must be updated before calling updateShiftState
-        if (settingsValues.mAutospaceAfterSuggestion)
-            mSpaceState = SpaceState.PHANTOM;
         inputTransaction.requireShiftUpdate(InputTransaction.SHIFT_UPDATE_NOW);
         setInlineEmojiSearchAction(false);
 
@@ -353,7 +354,9 @@ public final class InputLogic {
      */
     public boolean onUpdateSelection(final int oldSelStart, final int oldSelEnd, final int newSelStart,
              final int newSelEnd, final int composingSpanStart, final int composingSpanEnd, final SettingsValues settingsValues) {
-        if (mConnection.isBelatedExpectedUpdate(oldSelStart, newSelStart, oldSelEnd, newSelEnd, composingSpanStart, composingSpanEnd)) {
+        final boolean isBelatedExpectedUpdate = mConnection.isBelatedExpectedUpdate(oldSelStart, newSelStart, oldSelEnd, newSelEnd, composingSpanStart, composingSpanEnd);
+        if (isBelatedExpectedUpdate) {
+            // This is an expected update from our own action - preserve the space state
             return false;
         }
         // TODO: the following is probably better done in resetEntireInputState().
@@ -362,11 +365,7 @@ public final class InputLogic {
         // the call to updateShiftState.
         // We set this to NONE because after a cursor move, we don't want the space
         // state-related special processing to kick in.
-        // However, preserve PHANTOM space state if autospace after suggestion is enabled,
-        // since this state is needed for hardware keyboard to insert a space before the next character.
-        if (!(mSpaceState == SpaceState.PHANTOM && settingsValues.mAutospaceAfterSuggestion)) {
-            mSpaceState = SpaceState.NONE;
-        }
+        mSpaceState = SpaceState.NONE;
 
         final boolean selectionChangedOrSafeToReset =
                 oldSelStart != newSelStart || oldSelEnd != newSelEnd // selection changed
