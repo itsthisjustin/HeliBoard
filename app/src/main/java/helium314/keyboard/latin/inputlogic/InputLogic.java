@@ -362,7 +362,11 @@ public final class InputLogic {
         // the call to updateShiftState.
         // We set this to NONE because after a cursor move, we don't want the space
         // state-related special processing to kick in.
-        mSpaceState = SpaceState.NONE;
+        // However, preserve PHANTOM space state if autospace after suggestion is enabled,
+        // since this state is needed for hardware keyboard to insert a space before the next character.
+        if (!(mSpaceState == SpaceState.PHANTOM && settingsValues.mAutospaceAfterSuggestion)) {
+            mSpaceState = SpaceState.NONE;
+        }
 
         final boolean selectionChangedOrSafeToReset =
                 oldSelStart != newSelStart || oldSelEnd != newSelEnd // selection changed
