@@ -1060,6 +1060,7 @@ public final class InputLogic {
                 mWordComposer.setCapitalizedModeAtStartComposingTime(inputTransaction.getShiftState());
             }
             setComposingTextInternal(getTextWithUnderline(mWordComposer.getTypedWord()), 1);
+            Log.d(TAG, "handleNonSeparator: composed word='" + mWordComposer.getTypedWord() + "', eventX=" + event.getX());
         } else {
             final boolean swapWeakSpace = tryStripSpaceAndReturnWhetherShouldSwapInstead(event, inputTransaction);
 
@@ -1102,12 +1103,16 @@ public final class InputLogic {
             // If we are in the middle of a recorrection, we need to commit the recorrection
             // first so that we can insert the separator at the current cursor position.
             // We also need to unlearn the original word that is now being corrected.
+            Log.d(TAG, "handleSeparatorEvent: resetting state due to cursor in middle of word");
             unlearnWord(mWordComposer.getTypedWord(), inputTransaction.getSettingsValues(), Constants.EVENT_BACKSPACE);
             resetEntireInputState(mConnection.getExpectedSelectionStart(),
                     mConnection.getExpectedSelectionEnd(), true /* clearSuggestionStrip */);
         }
         // isComposingWord() may have changed since we stored wasComposing
         if (mWordComposer.isComposingWord()) {
+            Log.d(TAG, "handleSeparatorEvent: isComposingWord=true, mAutoCorrectEnabled=" + settingsValues.mAutoCorrectEnabled
+                + ", isInlineEmoji=" + isInlineEmojiSearchAction()
+                + ", eventX=" + event.getX());
             if (settingsValues.mAutoCorrectEnabled && ! isInlineEmojiSearchAction()) {
                 final String separator = shouldAvoidSendingCode ? LastComposedWord.NOT_A_SEPARATOR
                         : StringUtils.newSingleCodePointString(codePoint);
@@ -1115,6 +1120,41 @@ public final class InputLogic {
                 inputTransaction.setDidAutoCorrect();
             } else {
                 commitTyped(settingsValues, StringUtils.newSingleCodePointString(codePoint));
+            }
+        } else if (event.getX() == Constants.EXTERNAL_KEYBOARD_COORDINATE
+                && settingsValues.mAutoCorrectEnabled
+                && !isInlineEmojiSearchAction()
+                && mSuggestedWords != null
+                && !mSuggestedWords.isEmpty()) {
+            // For physical keyboard input, attempt autocorrection even when not in composing mode
+            // This handles the case where physical keyboard doesn't properly set composing text
+            Log.d(TAG, "Physical keyboard separator - mWillAutoCorrect: " + mSuggestedWords.mWillAutoCorrect
+                + ", size: " + mSuggestedWords.size());
+
+            if (mSuggestedWords.mWillAutoCorrect) {
+                final String typedWord = mSuggestedWords.mTypedWordInfo != null ? mSuggestedWords.mTypedWordInfo.mWord : "";
+                final String autoCorrection = mSuggestedWords.getWord(SuggestedWords.INDEX_OF_AUTO_CORRECTION);
+
+                Log.d(TAG, "Attempting autocorrect: '" + typedWord + "' -> '" + autoCorrection + "'");
+
+                if (!typedWord.isEmpty() && !typedWord.equals(autoCorrection)) {
+                    // Delete the typed word
+                    mConnection.deleteTextBeforeCursor(typedWord.length());
+
+                    // Commit the autocorrection
+                    mConnection.commitText(autoCorrection, 1);
+
+                    // Show correction indicator
+                    mConnection.commitCorrection(new CorrectionInfo(
+                            mConnection.getExpectedSelectionEnd() - autoCorrection.length(),
+                            typedWord, autoCorrection));
+
+                    inputTransaction.setDidAutoCorrect();
+
+                    // Clear suggestions after autocorrection
+                    resetComposingState(true);
+                    Log.d(TAG, "Autocorrect applied successfully");
+                }
             }
         }
 
