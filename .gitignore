@@ -17,3 +17,4 @@ tools/*.txt
 keystore.properties
 *.jks
 *.keystore
+PHYSICAL_KEYBOARD_AUTOCORRECT_INVESTIGATION.md

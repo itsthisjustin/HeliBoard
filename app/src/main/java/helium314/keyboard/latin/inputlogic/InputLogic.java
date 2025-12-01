@@ -116,6 +116,10 @@ public final class InputLogic {
 
     private boolean mJustRevertedACommit = false;
 
+    // Physical keyboard autocorrection state
+    private String mPendingAutoCorrectionTypedWord = null;
+    private String mPendingAutoCorrectionSuggestion = null;
+
     /**
      * Create a new instance of the input logic.
      * @param latinIME the instance of the parent LatinIME. We should remove this when we can.
@@ -587,6 +591,20 @@ public final class InputLogic {
     // TODO: on the long term, this method should become private, but it will be difficult.
     // Especially, how do we deal with InputMethodService.onDisplayCompletions?
     public void setSuggestedWords(final SuggestedWords suggestedWords) {
+        Log.d(TAG, "DIAGNOSTIC - setSuggestedWords: mWillAutoCorrect=" + suggestedWords.mWillAutoCorrect
+            + ", isComposingWord=" + mWordComposer.isComposingWord());
+
+        // Store autocorrection for physical keyboard
+        if (!suggestedWords.isEmpty() && suggestedWords.mWillAutoCorrect && mWordComposer.isComposingWord()) {
+            mPendingAutoCorrectionTypedWord = suggestedWords.mTypedWordInfo != null ? suggestedWords.mTypedWordInfo.mWord : "";
+            mPendingAutoCorrectionSuggestion = suggestedWords.getWord(SuggestedWords.INDEX_OF_AUTO_CORRECTION);
+            Log.d(TAG, "DIAGNOSTIC - Storing autocorrection: '" + mPendingAutoCorrectionTypedWord + "' -> '" + mPendingAutoCorrectionSuggestion + "'");
+        } else if (!mWordComposer.isComposingWord()) {
+            // Clear pending autocorrection when not composing
+            mPendingAutoCorrectionTypedWord = null;
+            mPendingAutoCorrectionSuggestion = null;
+        }
+
         if (!suggestedWords.isEmpty()) {
             final SuggestedWordInfo suggestedWordInfo;
             if (suggestedWords.mWillAutoCorrect) {
@@ -1726,7 +1744,9 @@ public final class InputLogic {
         long startTimeMillis = 0;
         if (DebugFlags.DEBUG_ENABLED) {
             startTimeMillis = System.currentTimeMillis();
-            Log.d(TAG, "performUpdateSuggestionStripSync()");
+            Log.d(TAG, "performUpdateSuggestionStripSync() - isComposingWord=" + mWordComposer.isComposingWord()
+                + ", bigramPredictionEnabled=" + settingsValues.mBigramPredictionEnabled
+                + ", hasPendingAutoCorrection=" + (mPendingAutoCorrectionTypedWord != null));
         }
         // Check if we have a suggestion engine attached.
         if (!settingsValues.needsToLookupSuggestions()) {
@@ -1737,6 +1757,37 @@ public final class InputLogic {
             // Clear the suggestions strip.
             mSuggestionStripViewAccessor.setSuggestions(SuggestedWords.getEmptyInstance());
             return;
+        }
+
+        // Apply pending physical keyboard autocorrection first
+        if (!mWordComposer.isComposingWord() && mPendingAutoCorrectionTypedWord != null && mPendingAutoCorrectionSuggestion != null) {
+            Log.d(TAG, "DIAGNOSTIC - Applying pending autocorrection in performUpdateSuggestionStripSync: '" + mPendingAutoCorrectionTypedWord + "' -> '" + mPendingAutoCorrectionSuggestion + "'");
+            final int cursorPos = mConnection.getExpectedSelectionStart();
+            // Get extra character to account for the space that was just typed
+            final CharSequence textBeforeCursor = mConnection.getTextBeforeCursor(mPendingAutoCorrectionTypedWord.length() + 1, 0);
+
+            Log.d(TAG, "DIAGNOSTIC - cursorPos=" + cursorPos + ", textBeforeCursor: '" + textBeforeCursor + "', length=" + (textBeforeCursor != null ? textBeforeCursor.length() : "null"));
+
+            if (textBeforeCursor != null && textBeforeCursor.length() >= mPendingAutoCorrectionTypedWord.length()) {
+                // Extract the typed word (excluding trailing space)
+                final String actualTypedWord = textBeforeCursor.subSequence(
+                    0,
+                    mPendingAutoCorrectionTypedWord.length()).toString();
+
+                Log.d(TAG, "DIAGNOSTIC - actualTypedWord: '" + actualTypedWord + "', expected: '" + mPendingAutoCorrectionTypedWord + "', equals=" + actualTypedWord.equals(mPendingAutoCorrectionTypedWord));
+
+                if (actualTypedWord.equals(mPendingAutoCorrectionTypedWord)) {
+                    Log.d(TAG, "DIAGNOSTIC - Typed word matches, applying autocorrection");
+                    mConnection.setSelection(cursorPos, cursorPos);
+                    mConnection.deleteTextBeforeCursor(mPendingAutoCorrectionTypedWord.length() + 1);
+                    mConnection.commitText(mPendingAutoCorrectionSuggestion + " ", 1);
+                }
+            } else {
+                Log.d(TAG, "DIAGNOSTIC - textBeforeCursor is null or too short");
+            }
+
+            mPendingAutoCorrectionTypedWord = null;
+            mPendingAutoCorrectionSuggestion = null;
         }
 
         if (!mWordComposer.isComposingWord() && !settingsValues.mBigramPredictionEnabled) {

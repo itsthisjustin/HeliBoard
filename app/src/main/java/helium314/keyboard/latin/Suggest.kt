@@ -182,21 +182,26 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         }
         // If correction is not enabled, we never auto-correct. This is for example for when
         // the setting "Auto-correction" is "off": we still suggest, but we don't auto-correct.
+        Log.d(TAG, "DIAGNOSTIC - isResumed check commented out, checking other conditions")
+        Log.d(TAG, "  isCorrectionEnabled: $isCorrectionEnabled")
+        Log.d(TAG, "  allowsToBeAutoCorrected: $allowsToBeAutoCorrected")
+        Log.d(TAG, "  wordComposer.isComposingWord: ${wordComposer.isComposingWord}")
+
         val hasAutoCorrection: Boolean
         if (!isCorrectionEnabled
             // todo: can some parts be moved to isCorrectionEnabled? e.g. keyboardIdMode only depends on input type
             //  i guess then not mAutoCorrectionEnabledPerUserSettings should be read, but rather some isAutocorrectEnabled()
             // If the word does not allow to be auto-corrected, then we don't auto-correct.
             || !allowsToBeAutoCorrected // If we are doing prediction, then we never auto-correct of course
-            // Removed isComposingWord check to enable autocorrect for hardware keyboards
-            // || !wordComposer.isComposingWord // If we don't have suggestion results, we can't evaluate the first suggestion
+            || !wordComposer.isComposingWord // If we don't have suggestion results, we can't evaluate the first suggestion
             // for auto-correction
             || suggestionResults.isEmpty() // If the word has digits, we never auto-correct because it's likely the word
             // was type with a lot of care
             || wordComposer.hasDigits() // If the word is mostly caps, we never auto-correct because this is almost
             // certainly intentional (and careful input)
             || wordComposer.isMostlyCaps // We never auto-correct when suggestions are resumed because it would be unexpected
-            || wordComposer.isResumed // If we don't have a main dictionary, we never want to auto-correct. The reason
+            // Commented out: blocks physical keyboard autocorrection
+            // || wordComposer.isResumed // If we don't have a main dictionary, we never want to auto-correct. The reason
             // for this is, the user may have a contact whose name happens to match a valid
             // word in their language, and it will unexpectedly auto-correct. For example, if
             // the user types in English with no dictionary and has a "Will" in their contact
@@ -206,7 +211,9 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             || !mDictionaryFacilitator.hasAtLeastOneInitializedMainDictionary()
         ) {
             hasAutoCorrection = false
+            Log.d(TAG, "DIAGNOSTIC - hasAutoCorrection=FALSE")
         } else {
+            Log.d(TAG, "DIAGNOSTIC - hasAutoCorrection will be evaluated")
             val firstSuggestion = firstSuggestionInContainer ?: suggestionResults.first()
             if (suggestionResults.mFirstSuggestionExceedsConfidenceThreshold && firstOccurrenceOfTypedWordInSuggestions != 0) {
                 // mFirstSuggestionExceedsConfidenceThreshold is always set to false, so currently this branch is useless
